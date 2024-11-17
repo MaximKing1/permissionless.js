@@ -1,0 +1,20 @@
+{
+"roles": {
+    "admin": {
+      "permissions": ["read:*", "write:*", "delete:*"],
+      "inherits": ["editor"]
+    },
+    "editor": {
+      "permissions": ["read:articles", "write:articles"]
+    },
+    "viewer": {
+      "permissions": ["read:articles"]
+    }
+  },
+  "users": {
+    "123": {
+      "permissions": ["read:restricted-docs"],
+      "denies": ["write:articles"]
+    }
+  }
+}

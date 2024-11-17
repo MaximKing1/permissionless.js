@@ -1,0 +1,41 @@
+{
+  "name": "permissionless.js",
+  "version": "1.0.2",
+  "description": "Permissionless.js is a Permissions handler for node projects, it can be used via frontend and backend services.",
+  "keywords": [
+    "permissions",
+    "authorization",
+    "access control",
+    "nodejs",
+    "typescript",
+    "frontend",
+    "backend",
+    "security"
+  ],
+  "author": {
+    "name": "Maxim King",
+    "url": "https://github.com/MaximKing1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MaximKing1/permissionless.js.git"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "node-fetch": "^3.3.2",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.9.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.3"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}
