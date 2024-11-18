@@ -3,14 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Permissionless = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const node_fetch_1 = __importDefault(require("node-fetch"));
+const axios_1 = __importDefault(require("axios"));
 class Permissionless {
-    config;
-    configFilePath;
-    cache = new Map();
     constructor(configFilePath = '.permissionless.json') {
+        this.cache = new Map();
         this.configFilePath = path_1.default.resolve(process.cwd(), configFilePath);
         this.loadConfig();
         // Watch for changes to the config file
@@ -60,14 +59,15 @@ class Permissionless {
         return permission === requested;
     }
     hasPermission(user, permission, context) {
-        const userOverrides = this.config.users?.[user.id] || {};
+        var _a, _b, _c;
+        const userOverrides = ((_a = this.config.users) === null || _a === void 0 ? void 0 : _a[user.id]) || {};
         const fullPermission = context ? `${permission}:${context}` : permission;
         // Check denies first
-        if (userOverrides.denies?.some((denied) => this.matchesWildcard(denied, fullPermission))) {
+        if ((_b = userOverrides.denies) === null || _b === void 0 ? void 0 : _b.some((denied) => this.matchesWildcard(denied, fullPermission))) {
             return false;
         }
         // Check specific user permissions
-        if (userOverrides.permissions?.some((granted) => this.matchesWildcard(granted, fullPermission))) {
+        if ((_c = userOverrides.permissions) === null || _c === void 0 ? void 0 : _c.some((granted) => this.matchesWildcard(granted, fullPermission))) {
             return true;
         }
         // Check role-based permissions
@@ -96,12 +96,13 @@ class Permissionless {
         this.cache.clear();
     }
     async loadConfigFromApi(apiUrl) {
-        const response = await (0, node_fetch_1.default)(apiUrl);
-        if (!response.ok) {
+        const response = await axios_1.default.get(apiUrl);
+        if (response.status !== 200) {
             throw new Error(`Failed to load configuration from ${apiUrl}`);
         }
-        this.config = (await response.json());
+        this.config = response.data;
         this.clearCache();
     }
 }
+exports.Permissionless = Permissionless;
 exports.default = Permissionless;

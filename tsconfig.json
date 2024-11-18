@@ -1,13 +1,14 @@
 {
+  "files": ["./src/index.ts"],
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "CommonJS",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "declaration": true,
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "outDir": "./dist",
     "rootDir": "./src",
-    "declaration": true
-  },
-  "include": ["src/**/*", "__tests__"]
+    "target": "ES2019",
+    "outDir": "./dist",
+    "module": "commonjs",
+    "esModuleInterop": true
+  }
 }

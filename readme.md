@@ -28,6 +28,10 @@ Install the package using npm or yarn:
 npm install permissionless.js
 ```
 
+```bash
+yarn add permissionless.js
+```
+
 ---
 
 ## Getting Started
@@ -64,9 +68,13 @@ Define your roles, permissions, and user-specific overrides in `.permissionless.
 Import and initialize the `Permissionless` class in your application:
 
 ```typescript
-import Permissionless from 'permissionless.js';
+// CommonJS
+const { Permissionless } = require('permissionless.js');
+const permissions = new Permissionless();
 
-const permissions = new Permissionless(); // This will automatically load the `.permissionless.json` file.
+// OR using ES Modules
+import Permissionless from 'permissionless.js';
+const permissions = new Permissionless();
 ```
 
 ### 3. Check Permissions

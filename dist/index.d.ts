@@ -18,4 +18,5 @@ declare class Permissionless {
     clearCache(): void;
     loadConfigFromApi(apiUrl: string): Promise<void>;
 }
+export { Permissionless };
 export default Permissionless;

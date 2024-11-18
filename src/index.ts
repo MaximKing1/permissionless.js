@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import fetch from 'node-fetch';
+import axios from 'axios';
 
 interface PermissionlessConfig {
   roles: Record<
@@ -158,13 +158,14 @@ class Permissionless {
   }
 
   public async loadConfigFromApi(apiUrl: string): Promise<void> {
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
+    const response = await axios.get(apiUrl);
+    if (response.status !== 200) {
       throw new Error(`Failed to load configuration from ${apiUrl}`);
     }
-    this.config = (await response.json()) as PermissionlessConfig;
+    this.config = response.data as PermissionlessConfig;
     this.clearCache();
   }
 }
 
+export { Permissionless };
 export default Permissionless;

@@ -1,6 +1,6 @@
 {
   "name": "permissionless.js",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "description": "Permissionless.js is a Permissions handler for node projects, it can be used via frontend and backend services.",
   "keywords": [
     "permissions",
@@ -45,9 +45,17 @@
     "publish": "npm publish"
   },
   "dependencies": {
+    "axios": "^1.7.7",
     "fs": "^0.0.1-security",
     "node-fetch": "^3.3.2",
     "path": "^0.12.7"
+  },
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
