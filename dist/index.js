@@ -5,18 +5,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const node_fetch_1 = __importDefault(require("node-fetch")); // Required if loading config from an API
+const node_fetch_1 = __importDefault(require("node-fetch"));
 class Permissionless {
     config;
     configFilePath;
     cache = new Map();
-    constructor(configFilePath = ".permissionless.json") {
+    constructor(configFilePath = '.permissionless.json') {
         this.configFilePath = path_1.default.resolve(process.cwd(), configFilePath);
         this.loadConfig();
         // Watch for changes to the config file
         fs_1.default.watch(this.configFilePath, (eventType) => {
-            if (eventType === "change") {
-                console.log("Configuration file changed. Reloading...");
+            if (eventType === 'change') {
+                console.log('Configuration file changed. Reloading...');
                 this.loadConfig();
                 this.clearCache();
             }
@@ -26,7 +26,7 @@ class Permissionless {
         if (!fs_1.default.existsSync(this.configFilePath)) {
             throw new Error(`Configuration file not found at ${this.configFilePath}`);
         }
-        const configFileContent = fs_1.default.readFileSync(this.configFilePath, "utf-8");
+        const configFileContent = fs_1.default.readFileSync(this.configFilePath, 'utf-8');
         this.config = JSON.parse(configFileContent);
     }
     getRolePermissions(roleName, visited = new Set()) {
@@ -53,8 +53,8 @@ class Permissionless {
         return result;
     }
     matchesWildcard(permission, requested) {
-        if (permission.includes("*")) {
-            const regex = new RegExp(`^${permission.replace(/\*/g, ".*")}$`);
+        if (permission.includes('*')) {
+            const regex = new RegExp(`^${permission.replace(/\*/g, '.*')}$`);
             return regex.test(requested);
         }
         return permission === requested;
