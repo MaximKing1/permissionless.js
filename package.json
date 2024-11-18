@@ -29,6 +29,9 @@
     "type": "git",
     "url": "git+https://github.com/MaximKing1/permissionless.js.git"
   },
+  "bugs": {
+    "url": "https://github.com/MaximKing1/permissionless.js/issues"
+  },
   "engines": {
     "node": ">=14.0.0"
   },
