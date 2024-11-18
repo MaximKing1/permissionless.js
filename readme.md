@@ -8,6 +8,8 @@
 
 `Permissionless` is a powerful and extensible TypeScript library designed to manage user roles and permissions in your application. It offers features such as role inheritance, wildcard permissions, contextual checks, and dynamic configuration updates. This was first created in-house for JMServices Pro, and made open source.
 
+-- 
+
 ## Key Features
 
 - 👑 **Role Inheritance**: Define hierarchical roles where permissions are inherited from parent roles.
