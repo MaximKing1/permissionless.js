@@ -103,6 +103,21 @@ class Permissionless {
         this.config = response.data;
         this.clearCache();
     }
+    listRoles() {
+        return Object.keys(this.config.roles);
+    }
+    listUsers() {
+        return Object.keys(this.config.users || {});
+    }
+    hasRole(roleName) {
+        return !!this.config.roles[roleName];
+    }
+    checkMultiplePermissions(user, permissions, context) {
+        return permissions.every(permission => this.hasPermission(user, permission, context));
+    }
+    checkAnyPermission(user, permissions, context) {
+        return permissions.some(permission => this.hasPermission(user, permission, context));
+    }
 }
 exports.Permissionless = Permissionless;
 exports.default = Permissionless;

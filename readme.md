@@ -180,6 +180,31 @@ permissions.addPermissionToRole('editor', 'edit:comments');
 
 ---
 
+## Utility Methods
+
+### `listRoles(): string[]`
+
+- **Description**: Returns a list of all role names defined in the configuration.
+
+### `listUsers(): string[]`
+
+- **Description**: Returns a list of all user IDs defined in the configuration.
+
+### `hasRole(roleName: string): boolean`
+
+- **Description**: Checks if a role exists in the configuration.
+
+### `checkMultiplePermissions(user: User, permissions: string[], context?: string): boolean`
+
+- **Description**: Checks if a user has ALL of the specified permissions. Optionally checks within a context.
+
+### `checkAnyPermission(user: User, permissions: string[], context?: string): boolean`
+
+- **Description**: Checks if a user has ANY of the specified permissions. Optionally checks within a context.
+
+
+---
+
 ## Example Usage
 
 ### Basic Permission Check

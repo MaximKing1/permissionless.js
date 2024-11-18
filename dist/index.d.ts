@@ -17,6 +17,11 @@ declare class Permissionless {
     addPermissionToRole(roleName: string, permission: string): void;
     clearCache(): void;
     loadConfigFromApi(apiUrl: string): Promise<void>;
+    listRoles(): string[];
+    listUsers(): string[];
+    hasRole(roleName: string): boolean;
+    checkMultiplePermissions(user: User, permissions: string[], context?: string): boolean;
+    checkAnyPermission(user: User, permissions: string[], context?: string): boolean;
 }
 export { Permissionless };
 export default Permissionless;
