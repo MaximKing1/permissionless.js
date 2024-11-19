@@ -26,6 +26,11 @@
     "email": "permissionless@maximking.co.uk",
     "url": "https://github.com/MaximKing1"
   },
+  "funding": {
+    "type": "individual",
+    "url": "https://ko-fi.com/maximking"
+  },
+  "man": "./readme.md",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MaximKing1/permissionless.js.git"
