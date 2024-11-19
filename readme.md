@@ -74,7 +74,7 @@ const { Permissionless } = require('permissionless.js');
 const permissions = new Permissionless();
 
 // OR using ES Modules
-import Permissionless from 'permissionless.js';
+import { Permissionless } from 'permissionless.js';
 const permissions = new Permissionless();
 ```
 
