@@ -7,15 +7,22 @@ exports.Permissionless = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const axios_1 = __importDefault(require("axios"));
+class PermissionlessError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'PermissionlessError';
+    }
+}
 class Permissionless {
     constructor(configFilePath = '.permissionless.json') {
         this.cache = new Map();
+        this.memoWildcardMatch = new Map();
         this.configFilePath = path_1.default.resolve(process.cwd(), configFilePath);
         this.loadConfig();
         // Watch for changes to the config file
         fs_1.default.watch(this.configFilePath, (eventType) => {
             if (eventType === 'change') {
-                console.log('Configuration file changed. Reloading...');
+                console.log('[Permissionless] Configuration file changed. Reloading...');
                 this.loadConfig();
                 this.clearCache();
             }
@@ -23,10 +30,30 @@ class Permissionless {
     }
     loadConfig() {
         if (!fs_1.default.existsSync(this.configFilePath)) {
-            throw new Error(`Configuration file not found at ${this.configFilePath}`);
+            throw new PermissionlessError(`Configuration file not found at ${this.configFilePath}`);
         }
-        const configFileContent = fs_1.default.readFileSync(this.configFilePath, 'utf-8');
-        this.config = JSON.parse(configFileContent);
+        try {
+            const configFileContent = fs_1.default.readFileSync(this.configFilePath, 'utf-8');
+            this.config = JSON.parse(configFileContent);
+        }
+        catch (error) {
+            throw new PermissionlessError(`Failed to parse configuration file: ${error}`);
+        }
+        this.validateConfig(this.config);
+    }
+    validateConfig(config) {
+        if (!config.roles || typeof config.roles !== 'object') {
+            throw new PermissionlessError('Configuration must include roles object');
+        }
+        // Validate each role
+        Object.entries(config.roles).forEach(([roleName, role]) => {
+            if (!Array.isArray(role.permissions)) {
+                throw new PermissionlessError(`Role ${roleName} must have permissions array`);
+            }
+            if (role.inherits && !Array.isArray(role.inherits)) {
+                throw new PermissionlessError(`Role ${roleName} inherits must be an array`);
+            }
+        });
     }
     getRolePermissions(roleName, visited = new Set()) {
         if (this.cache.has(roleName)) {
@@ -53,11 +80,29 @@ class Permissionless {
     }
     matchesWildcard(permission, requested) {
         if (permission.includes('*')) {
-            const regex = new RegExp(`^${permission.replace(/\*/g, '.*')}$`);
+            let regex = this.memoWildcardMatch.get(permission);
+            if (!regex) {
+                regex = new RegExp(`^${permission.replace(/\*/g, '.*')}$`);
+                this.memoWildcardMatch.set(permission, regex);
+            }
             return regex.test(requested);
         }
         return permission === requested;
     }
+    /**
+     * Checks if a user has the specified permission, optionally within a context.
+     *
+     * @param user - The user object containing id and role
+     * @param permission - The permission to check (e.g. 'read', 'write')
+     * @param context - Optional context to scope the permission (e.g. 'articles', 'comments')
+     * @returns True if the user has the permission, false otherwise
+     *
+     * @example
+     * ```ts
+     * const user = { id: '123', role: 'editor' };
+     * permissions.hasPermission(user, 'write', 'articles'); // true/false
+     * ```
+     */
     hasPermission(user, permission, context) {
         var _a, _b, _c;
         const userOverrides = ((_a = this.config.users) === null || _a === void 0 ? void 0 : _a[user.id]) || {};
@@ -74,9 +119,34 @@ class Permissionless {
         const rolePermissions = this.getRolePermissions(user.role);
         return rolePermissions.some((perm) => this.matchesWildcard(perm, fullPermission));
     }
+    /**
+     * Retrieves all permissions for a specified role, including inherited ones.
+     *
+     * @param role - The role name to get permissions for
+     * @returns Array of permission strings for the role
+     *
+     * @example
+     * ```ts
+     * const editorPerms = permissions.getPermissionsForRole('editor');
+     * // Returns: ['read:articles', 'write:articles']
+     * ```
+     */
     getPermissionsForRole(role) {
         return this.getRolePermissions(role);
     }
+    /**
+     * Adds a new role with specified permissions and optional inheritance.
+     *
+     * @param roleName - The name of the new role
+     * @param permissions - Array of permission strings to grant to the role
+     * @param inherits - Optional array of role names this role should inherit from
+     * @throws Error if role already exists
+     *
+     * @example
+     * ```ts
+     * permissions.addRole('moderator', ['moderate:comments'], ['viewer']);
+     * ```
+     */
     addRole(roleName, permissions, inherits) {
         if (this.config.roles[roleName]) {
             throw new Error(`Role ${roleName} already exists`);
@@ -84,6 +154,18 @@ class Permissionless {
         this.config.roles[roleName] = { permissions, inherits };
         this.clearCache();
     }
+    /**
+     * Adds a new permission to an existing role.
+     *
+     * @param roleName - The name of the role to modify
+     * @param permission - The permission string to add
+     * @throws Error if role does not exist
+     *
+     * @example
+     * ```ts
+     * permissions.addPermissionToRole('viewer', 'read:docs');
+     * ```
+     */
     addPermissionToRole(roleName, permission) {
         const role = this.config.roles[roleName];
         if (!role) {
@@ -92,9 +174,24 @@ class Permissionless {
         role.permissions.push(permission);
         this.clearCache();
     }
+    /**
+     * Clears the internal permissions cache.
+     * Call this after making changes to roles or permissions.
+     */
     clearCache() {
         this.cache.clear();
     }
+    /**
+     * Loads permission configuration from an external API endpoint.
+     *
+     * @param apiUrl - The URL to fetch the configuration from
+     * @throws Error if the API request fails or returns invalid config
+     *
+     * @example
+     * ```ts
+     * await permissions.loadConfigFromApi('https://example.com/permissions.json');
+     * ```
+     */
     async loadConfigFromApi(apiUrl) {
         const response = await axios_1.default.get(apiUrl);
         if (response.status !== 200) {
@@ -102,21 +199,91 @@ class Permissionless {
         }
         this.config = response.data;
         this.clearCache();
+        this.validateConfig(this.config);
     }
+    /**
+     * Returns a list of all defined role names.
+     *
+     * @returns Array of role name strings
+     *
+     * @example
+     * ```ts
+     * const roles = permissions.listRoles();
+     * // Returns: ['admin', 'editor', 'viewer']
+     * ```
+     */
     listRoles() {
         return Object.keys(this.config.roles);
     }
+    /**
+     * Returns a list of all user IDs with specific permissions/denies.
+     *
+     * @returns Array of user ID strings
+     *
+     * @example
+     * ```ts
+     * const users = permissions.listUsers();
+     * // Returns: ['123', '456']
+     * ```
+     */
     listUsers() {
         return Object.keys(this.config.users || {});
     }
+    /**
+     * Checks if a role exists in the configuration.
+     *
+     * @param roleName - The role name to check
+     * @returns True if the role exists, false otherwise
+     *
+     * @example
+     * ```ts
+     * if (permissions.hasRole('admin')) {
+     *   console.log('Admin role exists');
+     * }
+     * ```
+     */
     hasRole(roleName) {
         return !!this.config.roles[roleName];
     }
+    /**
+     * Checks if a user has ALL of the specified permissions.
+     *
+     * @param user - The user object containing id and role
+     * @param permissions - Array of permission strings to check
+     * @param context - Optional context to scope the permissions
+     * @returns True if user has ALL permissions, false otherwise
+     *
+     * @example
+     * ```ts
+     * const hasAll = permissions.checkMultiplePermissions(
+     *   user,
+     *   ['read', 'write'],
+     *   'articles'
+     * );
+     * ```
+     */
     checkMultiplePermissions(user, permissions, context) {
-        return permissions.every(permission => this.hasPermission(user, permission, context));
+        return permissions.every((permission) => this.hasPermission(user, permission, context));
     }
+    /**
+     * Checks if a user has ANY of the specified permissions.
+     *
+     * @param user - The user object containing id and role
+     * @param permissions - Array of permission strings to check
+     * @param context - Optional context to scope the permissions
+     * @returns True if user has ANY permission, false otherwise
+     *
+     * @example
+     * ```ts
+     * const hasAny = permissions.checkAnyPermission(
+     *   user,
+     *   ['read', 'write'],
+     *   'articles'
+     * );
+     * ```
+     */
     checkAnyPermission(user, permissions, context) {
-        return permissions.some(permission => this.hasPermission(user, permission, context));
+        return permissions.some((permission) => this.hasPermission(user, permission, context));
     }
 }
 exports.Permissionless = Permissionless;

@@ -1,6 +1,6 @@
 {
   "name": "permissionless.js",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Permissionless.js is a Permissions handler for node projects, it can be used via frontend and backend services.",
   "keywords": [
     "permissions",
@@ -23,6 +23,7 @@
   "homepage": "https://github.com/MaximKing1/permissionless.js#readme",
   "author": {
     "name": "Maxim King",
+    "email": "permissionless@maximking.co.uk",
     "url": "https://github.com/MaximKing1"
   },
   "repository": {
@@ -33,7 +34,11 @@
     "url": "https://github.com/MaximKing1/permissionless.js/issues"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=14.0.0",
+    "bun": ">=1.1.25",
+    "pnpm": ">=9.0.0",
+    "yarn": ">=1.22.22",
+    "deno": ">=1.40.0"
   },
   "license": "MIT",
   "main": "./dist/index.js",
@@ -46,6 +51,7 @@
   },
   "dependencies": {
     "axios": "^1.7.7",
+    "chalk": "^5.3.0",
     "fs": "^0.0.1-security",
     "node-fetch": "^3.3.2",
     "path": "^0.12.7"
@@ -58,7 +64,6 @@
     }
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@types/node": "^22.9.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
