@@ -17,6 +17,7 @@
 - ⚡ **Dynamic Configuration**: Automatically reload changes to `.permissionless.json` or fetch from APIs.
 - 🚀 **Caching for Performance**: Built-in caching to optimize repeated permission checks.
 - 🏃 **Runtime Compatibility**: Works seamlessly with Bun, Deno & Node.js for maximum flexibility across different JavaScript runtimes.
+- 🔥 **Firestore Integration (Beta)**: Seamlessly load and manage permissions through Firebase Firestore, with more cloud functions being actively developed.
 
 ---
 
@@ -90,8 +91,6 @@ if (permissions.hasPermission(user, 'read', 'articles')) {
   console.error('User does NOT have permission');
 }
 ```
-
----
 
 ## Advanced Features
 
@@ -289,6 +288,60 @@ await permissions.loadConfigFromApi('https://example.com/permissions');
   ```
   Error: Role [user.role] not found
   ```
+
+---
+
+## 🔥 Firebase Documentation (Beta)
+
+### Load config from Firestore Database
+#### `loadConfigFromFirestore(collection?: string, documentId?: string): Promise<void>`
+
+- **Description**: Loads permission configuration from Firebase Firestore. This allows dynamic loading of permissions from a Firestore database.
+- **Parameters**:
+  - `collection` (optional): The Firestore collection name where the config is stored
+    - Default: `'permissionlessConfig'`
+  - `documentId` (optional): The document ID containing the config
+    - Default: `'config'`
+- **Returns**: Promise that resolves when configuration is loaded
+- **Throws**: `PermissionlessError` if:
+  - Firestore instance is not initialized
+  - Document doesn't exist in collection
+  - Configuration validation fails
+  - Firestore request fails
+
+**Example Usage**:
+```typescript
+const firestore = new Firestore();
+const permissions = new Permissionless();
+
+// Using default collection and document
+await permissions.loadConfigFromFirestore();
+
+// Using custom collection and document
+await permissions.loadConfigFromFirestore('customCollection', 'customConfig');
+```
+
+**Expected Firestore Document Structure**:
+```json
+{
+  "roles": {
+    "admin": {
+      "permissions": ["*"],
+      "inherits": []
+    },
+    "editor": {
+      "permissions": ["read:*", "write:articles"],
+      "inherits": ["viewer"]
+    }
+  },
+  "users": {
+    "user123": {
+      "permissions": ["special:access"],
+      "denies": ["write:comments"]
+    }
+  }
+}
+```
 
 ---
 

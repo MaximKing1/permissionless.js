@@ -1,6 +1,6 @@
 {
   "name": "permissionless.js",
-  "version": "1.0.12",
+  "version": "1.0.14",
   "description": "Permissionless.js is a Permissions handler for node projects, it can be used via frontend and backend services.",
   "keywords": [
     "permissions",
@@ -55,6 +55,7 @@
     "publish": "npm publish"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^7.10.0",
     "axios": "^1.7.7",
     "chalk": "^5.3.0",
     "fs": "^0.0.1-security",
