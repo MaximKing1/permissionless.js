@@ -13,10 +13,31 @@ class PermissionlessError extends Error {
         this.name = 'PermissionlessError';
     }
 }
+/**
+ * A class for managing role-based permissions and access control.
+ *
+ * Permissionless provides a flexible system for defining roles, permissions,
+ * and user access. It supports:
+ * - Role-based permission management
+ * - Permission inheritance between roles
+ * - User-specific permission overrides
+ * - Context-scoped permissions
+ * - Wildcard permission patterns
+ * - Live config reloading
+ *
+ * @example
+ * ```ts
+ * const permissions = new Permissionless();
+ *
+ * // Check if a user has permission
+ * const canAccess = permissions.hasPermission(user, 'read', 'articles');
+ * ```
+ */
 class Permissionless {
     constructor(configFilePath = '.permissionless.json') {
         this.cache = new Map();
         this.memoWildcardMatch = new Map();
+        this.permissionCache = new Map();
         this.configFilePath = path_1.default.resolve(process.cwd(), configFilePath);
         this.loadConfig();
         // Watch for changes to the config file
@@ -105,19 +126,28 @@ class Permissionless {
      */
     hasPermission(user, permission, context) {
         var _a, _b, _c;
+        const cacheKey = `${user.id}:${permission}:${context || ''}`;
+        // This is a cache for the permission check result
+        if (this.permissionCache.has(cacheKey)) {
+            return this.permissionCache.get(cacheKey);
+        }
+        // Existing permission check logic
         const userOverrides = ((_a = this.config.users) === null || _a === void 0 ? void 0 : _a[user.id]) || {};
         const fullPermission = context ? `${permission}:${context}` : permission;
-        // Check denies first
+        let result = false;
         if ((_b = userOverrides.denies) === null || _b === void 0 ? void 0 : _b.some((denied) => this.matchesWildcard(denied, fullPermission))) {
-            return false;
+            result = false;
         }
-        // Check specific user permissions
-        if ((_c = userOverrides.permissions) === null || _c === void 0 ? void 0 : _c.some((granted) => this.matchesWildcard(granted, fullPermission))) {
-            return true;
+        else if ((_c = userOverrides.permissions) === null || _c === void 0 ? void 0 : _c.some((granted) => this.matchesWildcard(granted, fullPermission))) {
+            result = true;
         }
-        // Check role-based permissions
-        const rolePermissions = this.getRolePermissions(user.role);
-        return rolePermissions.some((perm) => this.matchesWildcard(perm, fullPermission));
+        else {
+            const rolePermissions = this.getRolePermissions(user.role);
+            result = rolePermissions.some((perm) => this.matchesWildcard(perm, fullPermission));
+        }
+        // Cache the result
+        this.permissionCache.set(cacheKey, result);
+        return result;
     }
     /**
      * Retrieves all permissions for a specified role, including inherited ones.
@@ -179,6 +209,7 @@ class Permissionless {
      * Call this after making changes to roles or permissions.
      */
     clearCache() {
+        this.permissionCache.clear();
         this.cache.clear();
     }
     /**
@@ -195,7 +226,7 @@ class Permissionless {
     async loadConfigFromApi(apiUrl) {
         const response = await axios_1.default.get(apiUrl);
         if (response.status !== 200) {
-            throw new Error(`Failed to load configuration from ${apiUrl}`);
+            throw new Error(`[Permissionless] Failed to load configuration from ${apiUrl}`);
         }
         this.config = response.data;
         this.clearCache();

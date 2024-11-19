@@ -3,11 +3,32 @@ interface User {
     role: string;
     [key: string]: any;
 }
+/**
+ * A class for managing role-based permissions and access control.
+ *
+ * Permissionless provides a flexible system for defining roles, permissions,
+ * and user access. It supports:
+ * - Role-based permission management
+ * - Permission inheritance between roles
+ * - User-specific permission overrides
+ * - Context-scoped permissions
+ * - Wildcard permission patterns
+ * - Live config reloading
+ *
+ * @example
+ * ```ts
+ * const permissions = new Permissionless();
+ *
+ * // Check if a user has permission
+ * const canAccess = permissions.hasPermission(user, 'read', 'articles');
+ * ```
+ */
 declare class Permissionless {
     private config;
     private configFilePath;
     private cache;
     private memoWildcardMatch;
+    private permissionCache;
     constructor(configFilePath?: string);
     private loadConfig;
     private validateConfig;

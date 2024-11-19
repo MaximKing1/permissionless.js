@@ -32,11 +32,32 @@ class PermissionlessError extends Error {
   }
 }
 
+/**
+ * A class for managing role-based permissions and access control.
+ *
+ * Permissionless provides a flexible system for defining roles, permissions,
+ * and user access. It supports:
+ * - Role-based permission management
+ * - Permission inheritance between roles
+ * - User-specific permission overrides
+ * - Context-scoped permissions
+ * - Wildcard permission patterns
+ * - Live config reloading
+ *
+ * @example
+ * ```ts
+ * const permissions = new Permissionless();
+ *
+ * // Check if a user has permission
+ * const canAccess = permissions.hasPermission(user, 'read', 'articles');
+ * ```
+ */
 class Permissionless {
   private config!: PermissionlessConfig;
   private configFilePath: string;
   private cache: Map<string, string[]> = new Map();
   private memoWildcardMatch = new Map<string, RegExp>();
+  private permissionCache: Map<string, boolean> = new Map();
 
   constructor(configFilePath: string = '.permissionless.json') {
     this.configFilePath = path.resolve(process.cwd(), configFilePath);
@@ -140,12 +161,12 @@ class Permissionless {
 
   /**
    * Checks if a user has the specified permission, optionally within a context.
-   * 
+   *
    * @param user - The user object containing id and role
    * @param permission - The permission to check (e.g. 'read', 'write')
    * @param context - Optional context to scope the permission (e.g. 'articles', 'comments')
    * @returns True if the user has the permission, false otherwise
-   * 
+   *
    * @example
    * ```ts
    * const user = { id: '123', role: 'editor' };
@@ -157,40 +178,49 @@ class Permissionless {
     permission: string,
     context?: string
   ): boolean {
+    const cacheKey = `${user.id}:${permission}:${context || ''}`;
+
+    // This is a cache for the permission check result
+    if (this.permissionCache.has(cacheKey)) {
+      return this.permissionCache.get(cacheKey)!;
+    }
+
+    // Existing permission check logic
     const userOverrides = this.config.users?.[user.id] || {};
     const fullPermission = context ? `${permission}:${context}` : permission;
 
-    // Check denies first
+    let result = false;
+
     if (
       userOverrides.denies?.some((denied) =>
         this.matchesWildcard(denied, fullPermission)
       )
     ) {
-      return false;
-    }
-
-    // Check specific user permissions
-    if (
+      result = false;
+    } else if (
       userOverrides.permissions?.some((granted) =>
         this.matchesWildcard(granted, fullPermission)
       )
     ) {
-      return true;
+      result = true;
+    } else {
+      const rolePermissions = this.getRolePermissions(user.role);
+      result = rolePermissions.some((perm) =>
+        this.matchesWildcard(perm, fullPermission)
+      );
     }
 
-    // Check role-based permissions
-    const rolePermissions = this.getRolePermissions(user.role);
-    return rolePermissions.some((perm) =>
-      this.matchesWildcard(perm, fullPermission)
-    );
+    // Cache the result
+    this.permissionCache.set(cacheKey, result);
+    return result;
   }
 
   /**
    * Retrieves all permissions for a specified role, including inherited ones.
-   * 
+   *
    * @param role - The role name to get permissions for
    * @returns Array of permission strings for the role
-   * 
+   *
    * @example
    * ```ts
    * const editorPerms = permissions.getPermissionsForRole('editor');
@@ -203,12 +233,12 @@ class Permissionless {
 
   /**
    * Adds a new role with specified permissions and optional inheritance.
-   * 
+   *
    * @param roleName - The name of the new role
    * @param permissions - Array of permission strings to grant to the role
    * @param inherits - Optional array of role names this role should inherit from
    * @throws Error if role already exists
-   * 
+   *
    * @example
    * ```ts
    * permissions.addRole('moderator', ['moderate:comments'], ['viewer']);
@@ -228,11 +258,11 @@ class Permissionless {
 
   /**
    * Adds a new permission to an existing role.
-   * 
+   *
    * @param roleName - The name of the role to modify
    * @param permission - The permission string to add
    * @throws Error if role does not exist
-   * 
+   *
    * @example
    * ```ts
    * permissions.addPermissionToRole('viewer', 'read:docs');
@@ -252,15 +282,16 @@ class Permissionless {
    * Call this after making changes to roles or permissions.
    */
   public clearCache(): void {
+    this.permissionCache.clear();
     this.cache.clear();
   }
 
   /**
    * Loads permission configuration from an external API endpoint.
-   * 
+   *
    * @param apiUrl - The URL to fetch the configuration from
    * @throws Error if the API request fails or returns invalid config
-   * 
+   *
    * @example
    * ```ts
    * await permissions.loadConfigFromApi('https://example.com/permissions.json');
@@ -269,7 +300,7 @@ class Permissionless {
   public async loadConfigFromApi(apiUrl: string): Promise<void> {
     const response = await axios.get(apiUrl);
     if (response.status !== 200) {
-      throw new Error(`Failed to load configuration from ${apiUrl}`);
+      throw new Error(`[Permissionless] Failed to load configuration from ${apiUrl}`);
     }
     this.config = response.data as PermissionlessConfig;
     this.clearCache();
@@ -278,9 +309,9 @@ class Permissionless {
 
   /**
    * Returns a list of all defined role names.
-   * 
+   *
    * @returns Array of role name strings
-   * 
+   *
    * @example
    * ```ts
    * const roles = permissions.listRoles();
@@ -293,9 +324,9 @@ class Permissionless {
 
   /**
    * Returns a list of all user IDs with specific permissions/denies.
-   * 
+   *
    * @returns Array of user ID strings
-   * 
+   *
    * @example
    * ```ts
    * const users = permissions.listUsers();
@@ -308,10 +339,10 @@ class Permissionless {
 
   /**
    * Checks if a role exists in the configuration.
-   * 
+   *
    * @param roleName - The role name to check
    * @returns True if the role exists, false otherwise
-   * 
+   *
    * @example
    * ```ts
    * if (permissions.hasRole('admin')) {
@@ -325,12 +356,12 @@ class Permissionless {
 
   /**
    * Checks if a user has ALL of the specified permissions.
-   * 
+   *
    * @param user - The user object containing id and role
    * @param permissions - Array of permission strings to check
    * @param context - Optional context to scope the permissions
    * @returns True if user has ALL permissions, false otherwise
-   * 
+   *
    * @example
    * ```ts
    * const hasAll = permissions.checkMultiplePermissions(
@@ -352,12 +383,12 @@ class Permissionless {
 
   /**
    * Checks if a user has ANY of the specified permissions.
-   * 
+   *
    * @param user - The user object containing id and role
    * @param permissions - Array of permission strings to check
    * @param context - Optional context to scope the permissions
    * @returns True if user has ANY permission, false otherwise
-   * 
+   *
    * @example
    * ```ts
    * const hasAny = permissions.checkAnyPermission(
