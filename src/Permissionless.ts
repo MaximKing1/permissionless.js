@@ -27,9 +27,18 @@ interface User {
 }
 
 class PermissionlessError extends Error {
-  constructor(message: string) {
+  public timestamp: Date;
+  public code: string;
+
+  constructor(message: string, code: string = 'PERMISSIONLESS_ERROR') {
     super(message);
     this.name = 'PermissionlessError';
+    this.timestamp = new Date();
+    this.code = code;
+  }
+
+  public toString(): string {
+    return `${this.name} [${this.code}] (${this.timestamp.toISOString()}): ${this.message}`;
   }
 }
 
@@ -124,11 +133,11 @@ class Permissionless {
 
     const role = this.config.roles[roleName];
     if (!role) {
-      throw new Error(`Role ${roleName} not found`);
+      throw new PermissionlessError(`Role ${roleName} not found`);
     }
 
     if (visited.has(roleName)) {
-      throw new Error(`Circular inheritance detected in role: ${roleName}`);
+      throw new PermissionlessError(`Circular inheritance detected in role: ${roleName}`);
     }
 
     visited.add(roleName);
@@ -252,10 +261,10 @@ class Permissionless {
     inherits?: string[]
   ): void {
     if (this.config.roles[roleName]) {
-      throw new Error(`Role ${roleName} already exists`);
+      throw new PermissionlessError(`Role ${roleName} already exists`);
     }
     this.config.roles[roleName] = { permissions, inherits };
-    this.clearCache();
+    this.clearInternalCache();
   }
 
   /**
@@ -273,10 +282,10 @@ class Permissionless {
   public addPermissionToRole(roleName: string, permission: string): void {
     const role = this.config.roles[roleName];
     if (!role) {
-      throw new Error(`Role ${roleName} not found`);
+      throw new PermissionlessError(`Role ${roleName} not found`);
     }
     role.permissions.push(permission);
-    this.clearCache();
+    this.clearInternalCache();
   }
 
   /**
@@ -286,6 +295,12 @@ class Permissionless {
   public clearCache(): void {
     this.permissionCache.clear();
     this.cache.clear();
+  }
+
+  private clearInternalCache(): void {
+    this.permissionCache.clear();
+    this.cache.clear();
+    this.memoWildcardMatch.clear();
   }
 
   /**
@@ -302,12 +317,12 @@ class Permissionless {
   public async loadConfigFromApi(apiUrl: string): Promise<void> {
     const response = await axios.get(apiUrl);
     if (response.status !== 200) {
-      throw new Error(
-        `[Permissionless] Failed to load configuration from ${apiUrl}`
+      throw new PermissionlessError(
+        `Failed to load configuration from ${apiUrl}`
       );
     }
     this.config = response.data as PermissionlessConfig;
-    this.clearCache();
+    this.clearInternalCache();
     this.validateConfig(this.config);
   }
 

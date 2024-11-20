@@ -95,6 +95,7 @@ declare class Permissionless {
      * Call this after making changes to roles or permissions.
      */
     clearCache(): void;
+    private clearInternalCache;
     /**
      * Loads permission configuration from an external API endpoint.
      *

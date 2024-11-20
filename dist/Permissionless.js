@@ -4,13 +4,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Permissionless = void 0;
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const axios_1 = __importDefault(require("axios"));
 class PermissionlessError extends Error {
-    constructor(message) {
+    constructor(message, code = 'PERMISSIONLESS_ERROR') {
         super(message);
         this.name = 'PermissionlessError';
+        this.timestamp = new Date();
+        this.code = code;
+    }
+    toString() {
+        return `${this.name} [${this.code}] (${this.timestamp.toISOString()}): ${this.message}`;
     }
 }
 /**
@@ -39,10 +44,10 @@ class Permissionless {
         this.memoWildcardMatch = new Map();
         this.permissionCache = new Map();
         this.firestore = null;
-        this.configFilePath = path_1.default.resolve(process.cwd(), configFilePath);
+        this.configFilePath = node_path_1.default.resolve(process.cwd(), configFilePath);
         this.loadConfig();
         // Watch for changes to the config file
-        fs_1.default.watch(this.configFilePath, (eventType) => {
+        node_fs_1.default.watch(this.configFilePath, (eventType) => {
             if (eventType === 'change') {
                 console.log('[Permissionless] Configuration file changed. Reloading...');
                 this.loadConfig();
@@ -51,11 +56,11 @@ class Permissionless {
         });
     }
     loadConfig() {
-        if (!fs_1.default.existsSync(this.configFilePath)) {
+        if (!node_fs_1.default.existsSync(this.configFilePath)) {
             throw new PermissionlessError(`Configuration file not found at ${this.configFilePath}`);
         }
         try {
-            const configFileContent = fs_1.default.readFileSync(this.configFilePath, 'utf-8');
+            const configFileContent = node_fs_1.default.readFileSync(this.configFilePath, 'utf-8');
             this.config = JSON.parse(configFileContent);
         }
         catch (error) {
@@ -83,10 +88,10 @@ class Permissionless {
         }
         const role = this.config.roles[roleName];
         if (!role) {
-            throw new Error(`Role ${roleName} not found`);
+            throw new PermissionlessError(`Role ${roleName} not found`);
         }
         if (visited.has(roleName)) {
-            throw new Error(`Circular inheritance detected in role: ${roleName}`);
+            throw new PermissionlessError(`Circular inheritance detected in role: ${roleName}`);
         }
         visited.add(roleName);
         const permissions = new Set(role.permissions);
@@ -180,10 +185,10 @@ class Permissionless {
      */
     addRole(roleName, permissions, inherits) {
         if (this.config.roles[roleName]) {
-            throw new Error(`Role ${roleName} already exists`);
+            throw new PermissionlessError(`Role ${roleName} already exists`);
         }
         this.config.roles[roleName] = { permissions, inherits };
-        this.clearCache();
+        this.clearInternalCache();
     }
     /**
      * Adds a new permission to an existing role.
@@ -200,10 +205,10 @@ class Permissionless {
     addPermissionToRole(roleName, permission) {
         const role = this.config.roles[roleName];
         if (!role) {
-            throw new Error(`Role ${roleName} not found`);
+            throw new PermissionlessError(`Role ${roleName} not found`);
         }
         role.permissions.push(permission);
-        this.clearCache();
+        this.clearInternalCache();
     }
     /**
      * Clears the internal permissions cache.
@@ -212,6 +217,11 @@ class Permissionless {
     clearCache() {
         this.permissionCache.clear();
         this.cache.clear();
+    }
+    clearInternalCache() {
+        this.permissionCache.clear();
+        this.cache.clear();
+        this.memoWildcardMatch.clear();
     }
     /**
      * Loads permission configuration from an external API endpoint.
@@ -227,10 +237,10 @@ class Permissionless {
     async loadConfigFromApi(apiUrl) {
         const response = await axios_1.default.get(apiUrl);
         if (response.status !== 200) {
-            throw new Error(`[Permissionless] Failed to load configuration from ${apiUrl}`);
+            throw new PermissionlessError(`Failed to load configuration from ${apiUrl}`);
         }
         this.config = response.data;
-        this.clearCache();
+        this.clearInternalCache();
         this.validateConfig(this.config);
     }
     /**
