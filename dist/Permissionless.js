@@ -7,6 +7,7 @@ exports.Permissionless = void 0;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const axios_1 = __importDefault(require("axios"));
+const events_1 = require("events");
 class PermissionlessError extends Error {
     constructor(message, code = 'PERMISSIONLESS_ERROR') {
         super(message);
@@ -30,21 +31,27 @@ class PermissionlessError extends Error {
  * - Wildcard permission patterns
  * - Live config reloading
  *
+ * @emits configReloaded - Emitted when the configuration file is reloaded
  * @example
  * ```ts
- * const permissions = new Permissionless();
+ * const permissions = new Permissionless({
+ *   configFilePath: '.permissionless.json',
+ *   auditLogPath: 'permissionless_audit.log'
+ * });
  *
  * // Check if a user has permission
  * const canAccess = permissions.hasPermission(user, 'read', 'articles');
  * ```
  */
-class Permissionless {
-    constructor(configFilePath = '.permissionless.json') {
+class Permissionless extends events_1.EventEmitter {
+    constructor(configFilePath = '.permissionless.json', auditLogPath = 'permissionless_audit.log') {
+        super();
         this.cache = new Map();
         this.memoWildcardMatch = new Map();
         this.permissionCache = new Map();
         this.firestore = null;
         this.configFilePath = node_path_1.default.resolve(process.cwd(), configFilePath);
+        this.auditLogPath = node_path_1.default.resolve(process.cwd(), auditLogPath);
         this.loadConfig();
         // Watch for changes to the config file
         node_fs_1.default.watch(this.configFilePath, (eventType) => {
@@ -52,8 +59,17 @@ class Permissionless {
                 console.log('[Permissionless] Configuration file changed. Reloading...');
                 this.loadConfig();
                 this.clearCache();
+                this.emit('configReloaded');
             }
         });
+    }
+    logAudit(action, details) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            action,
+            details,
+        };
+        node_fs_1.default.appendFileSync(this.auditLogPath, JSON.stringify(entry) + '\n', 'utf-8');
     }
     loadConfig() {
         if (!node_fs_1.default.existsSync(this.configFilePath)) {
@@ -178,6 +194,8 @@ class Permissionless {
      * @param inherits - Optional array of role names this role should inherit from
      * @throws Error if role already exists
      *
+     * @emits roleAdded - Emitted when a role is added
+     *
      * @example
      * ```ts
      * permissions.addRole('moderator', ['moderate:comments'], ['viewer']);
@@ -189,6 +207,36 @@ class Permissionless {
         }
         this.config.roles[roleName] = { permissions, inherits };
         this.clearInternalCache();
+        this.emit('roleAdded', { roleName, permissions, inherits });
+        this.logAudit('addRole', { roleName, permissions, inherits });
+    }
+    /**
+     * Removes a role from the configuration.
+     *
+     * @param roleName - The name of the role to remove
+     * @throws Error if role does not exist or is inherited by other roles
+     *
+     * @emits roleRemoved - Emitted when a role is removed
+     *
+     * @example
+     * ```ts
+     * permissions.removeRole('moderator');
+     * ```
+     */
+    removeRole(roleName) {
+        if (!this.config.roles[roleName]) {
+            throw new PermissionlessError(`Role ${roleName} does not exist`);
+        }
+        const inheritingRoles = Object.entries(this.config.roles)
+            .filter(([_, role]) => { var _a; return (_a = role.inherits) === null || _a === void 0 ? void 0 : _a.includes(roleName); })
+            .map(([roleName]) => roleName);
+        if (inheritingRoles.length > 0) {
+            throw new PermissionlessError(`Cannot remove role ${roleName} as it is inherited by roles: ${inheritingRoles.join(', ')}`);
+        }
+        delete this.config.roles[roleName];
+        this.clearInternalCache();
+        this.emit('roleRemoved', { roleName });
+        this.logAudit('removeRole', { roleName });
     }
     /**
      * Adds a new permission to an existing role.

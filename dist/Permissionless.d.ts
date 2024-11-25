@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 interface User {
     id: string;
     role: string;
@@ -15,22 +16,28 @@ interface User {
  * - Wildcard permission patterns
  * - Live config reloading
  *
+ * @emits configReloaded - Emitted when the configuration file is reloaded
  * @example
  * ```ts
- * const permissions = new Permissionless();
+ * const permissions = new Permissionless({
+ *   configFilePath: '.permissionless.json',
+ *   auditLogPath: 'permissionless_audit.log'
+ * });
  *
  * // Check if a user has permission
  * const canAccess = permissions.hasPermission(user, 'read', 'articles');
  * ```
  */
-declare class Permissionless {
+declare class Permissionless extends EventEmitter {
     private config;
     private configFilePath;
     private cache;
     private memoWildcardMatch;
     private permissionCache;
     private firestore;
-    constructor(configFilePath?: string);
+    private auditLogPath;
+    constructor(configFilePath?: string, auditLogPath?: string);
+    private logAudit;
     private loadConfig;
     private validateConfig;
     private getRolePermissions;
@@ -71,12 +78,28 @@ declare class Permissionless {
      * @param inherits - Optional array of role names this role should inherit from
      * @throws Error if role already exists
      *
+     * @emits roleAdded - Emitted when a role is added
+     *
      * @example
      * ```ts
      * permissions.addRole('moderator', ['moderate:comments'], ['viewer']);
      * ```
      */
     addRole(roleName: string, permissions: string[], inherits?: string[]): void;
+    /**
+     * Removes a role from the configuration.
+     *
+     * @param roleName - The name of the role to remove
+     * @throws Error if role does not exist or is inherited by other roles
+     *
+     * @emits roleRemoved - Emitted when a role is removed
+     *
+     * @example
+     * ```ts
+     * permissions.removeRole('moderator');
+     * ```
+     */
+    removeRole(roleName: string): void;
     /**
      * Adds a new permission to an existing role.
      *
